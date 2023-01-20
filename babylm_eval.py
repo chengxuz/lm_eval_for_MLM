@@ -11,12 +11,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("model_path", type=str,
                         help="Path to huggingface model and tokenizer.")
-    parser.add_argument("model_type", type=str, choices=["decoder only", "encoder-decoder"],
+    parser.add_argument("model_type", type=str, choices=["decoder only", "encoder only", "encoder-decoder"],
                         help="Language model architecture.")
     args = parser.parse_args()
 
     MODEL_TYPE_REMAP = {"decoder only": "hf-causal",
-                        "encoder-decoder": "hf-seq2seq"}
+                        "encoder only": "hf-mlm",
+                        "encoder-decoder": "hf-seq2seq",}
     eval_model = lm_eval.get_model(MODEL_TYPE_REMAP[args.model_type],
                                    pretrained=args.model_path,
                                    device="cuda")
