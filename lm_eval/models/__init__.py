@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 MODEL_API_REGISTRY = {
     "hf-causal": huggingface.AutoCausalLM,
     "hf-seq2seq": huggingface.AutoSeq2SeqLM,
+    "hf-mlm": huggingface.AutoMaskedLM,
     "openai": openai_completions.OpenAICompletionsLM,
     "dummy": dummy.DummyLM,
 }

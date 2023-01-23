@@ -218,11 +218,13 @@ class HuggingFaceAutoLM(TokenLM):
         revision: str,
         subfolder: str,
         tokenizer: Optional[str] = None,
+        use_fast: Optional[bool] = True,
     ) -> transformers.PreTrainedTokenizer:
         """Returns a pre-trained tokenizer from a pre-trained tokenizer configuration."""
         tokenizer = self.AUTO_TOKENIZER_CLASS.from_pretrained(
             pretrained if tokenizer is None else tokenizer,
             revision=revision + ("/" + subfolder if subfolder is not None else ""),
+            use_fast=use_fast,
         )
         tokenizer.pad_token = tokenizer.eos_token
         return tokenizer
@@ -381,6 +383,7 @@ class AutoCausalLM(HuggingFaceAutoLM):
             revision=revision,
             subfolder=subfolder,
             tokenizer=tokenizer,
+            use_fast=False,
         )
         tokenizer.padding_side = "left"
         return tokenizer
@@ -694,7 +697,7 @@ class AutoMaskedLM(HuggingFaceAutoLM):
         """
         scores = []
         
-        for chunk in utils.chunks(requests, self.batch_size):
+        for chunk in utils.chunks(tqdm(requests, disable=False), self.batch_size):
             context, continuation = zip(*chunk)
             context = [
                 f"{self.tokenizer.eos_token}" if len(text) == 0 else text for text in context

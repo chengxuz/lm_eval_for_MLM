@@ -44,3 +44,6 @@ venv.bak/
 .coverage
 .coverage.*
 .cache
+
+# local testing files
+test/
