@@ -16,8 +16,11 @@ from lm_eval.api.task import Task
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.NOTSET)
 logger.addHandler(logging.StreamHandler(sys.stdout))
+
+from datasets.utils.logging import disable_progress_bar
+disable_progress_bar()
 
 
 def cli_evaluate(
@@ -120,6 +123,7 @@ def evaluate(
     bootstrap_iters: Optional[int] = 100000,
     seed: Optional[int] = DEFAULT_SEED,
     limit: Optional[int] = None,
+    task_dict: Optional[dict] = None,
 ) -> dict:
     """Instantiate and evaluate a model on a list of tasks.
 
@@ -146,18 +150,19 @@ def evaluate(
     rng = np.random.default_rng(seed)
 
     # TODO: Completely refactor this entire function to not be a huge mess, ideally breaking it down into smaller pieces
-    task_dict = {}
-    for task in tasks:
-        if task.has_validation_docs() is False and task.has_test_docs() is False:
-            logger.info(
-                f"Ignoring Task: {lm_eval.tasks.get_registry_name_from_task(task)} has no validation or test docs"
-            )
-            continue
-        # Create unique keys for each task-template pair.
-        task_name = lm_eval.tasks.get_registry_name_from_task(task)
-        template_name = task.prompt_template.name if task.prompt_template else None
-        key = lm_eval.tasks._get_task_template_key(task_name, template_name)
-        task_dict[key] = task
+    if task_dict is None:
+        task_dict = {}
+        for task in tasks:
+            if task.has_validation_docs() is False and task.has_test_docs() is False:
+                logger.info(
+                    f"Ignoring Task: {lm_eval.tasks.get_registry_name_from_task(task)} has no validation or test docs"
+                )
+                continue
+            # Create unique keys for each task-template pair.
+            task_name = lm_eval.tasks.get_registry_name_from_task(task)
+            template_name = task.prompt_template.name if task.prompt_template else None
+            key = lm_eval.tasks._get_task_template_key(task_name, template_name)
+            task_dict[key] = task
 
     results = collections.defaultdict(dict)
     versions = collections.defaultdict(dict)
@@ -171,20 +176,23 @@ def evaluate(
     for task_template_key, task in task_dict.items():
         task_docs = task.evaluation_docs()
 
-        logger.info(f"\n» Assigning unique IDs to '{task_template_key}' docs")
+        #logger.info(f"\n» Assigning unique IDs to '{task_template_key}' docs")
         task_docs = task_docs.map(
             lambda ex, idx: {**ex, "doc_id": idx}, with_indices=True
         )
 
-        logger.info(f"\n» Filtering invalid docs from '{task_template_key}'")
+        #logger.info(f"\n» Filtering invalid docs from '{task_template_key}'")
         task_docs = task_docs.filter(lambda d: not task.invalid_doc_for_prompt(d))
         task_docs = task_docs.shuffle(generator=rng)
 
-        logger.info(f"\n» Constructing '{task_template_key}' contexts and requests")
+        #logger.info(f"\n» Constructing '{task_template_key}' contexts and requests")
         pbar_limit = len(task_docs) if not limit else np.minimum(limit, len(task_docs))
 
+        #for doc_id, doc in enumerate(
+        #    tqdm(itertools.islice(task_docs, 0, limit), total=pbar_limit)
+        #):
         for doc_id, doc in enumerate(
-            tqdm(itertools.islice(task_docs, 0, limit), total=pbar_limit)
+            itertools.islice(task_docs, 0, limit)
         ):
             docs[(task_template_key, doc_id)] = doc
             ctx, fewshotex_logging_info = task.fewshot_context(
